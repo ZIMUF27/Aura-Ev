@@ -1,0 +1,73 @@
+// Prisma Schema for Aura EV Platform
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // เปลี่ยนเป็น "postgresql" เมื่อพร้อมเชื่อมต่อ Database จริงบน Cloud
+  url      = env("DATABASE_URL")
+}
+
+// 1. รถยนต์ไฟฟ้าในระบบ Marketplace
+model Car {
+  id              String               @id @default(uuid())
+  title           String               // เช่น "Tesla Model Y Long Range AWD"
+  brand           String               // "Tesla", "BYD", "GWM"
+  model           String               // "Model Y"
+  year            Int                  // 2023
+  price           Int                  // 1390000
+  installment     String               // "ผ่อนเริ่มต้น ฿21,500/ด."
+  mileageKm       Int                  // 18500
+  rangePerCharge  Int                  // 533
+  batteryCapacity Float                // 75.0 (kWh)
+  batteryType     String               // "NMC Lithium-Ion"
+  location        String               // "กรุงเทพฯ"
+  imageUrl        String               // รูปภาพหลัก
+  status          String               @default("AVAILABLE") // AVAILABLE, RESERVED, SOLD
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  // รายงานสุขภาพแบตเตอรี่ & การจอง
+  batteryReport   BatteryHealthReport?
+  testDrives      TestDriveBooking[]
+}
+
+// 2. ผลตรวจสุขภาพแบตเตอรี่เชิงลึก (Battery SoH)
+model BatteryHealthReport {
+  id                String   @id @default(uuid())
+  carId             String   @unique
+  car               Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  sohPercentage     Int      // 98 (%)
+  sohGrade          String   // "สมบูรณ์สูง (เกรด AAA)"
+  cellBalanceMv     Float    // 11.0 (mV)
+  warrantyRemaining String   // "ประกันศูนย์ถึงปี 2031 หรือ 160,000 กม."
+  passed150Points   Boolean  @default(true)
+  inspectedAt       DateTime @default(now())
+}
+
+// 3. แจ้งซ่อมและเรียกรถช่างฉุกเฉิน 24 ชม. (Emergency Mobile Service)
+model EmergencyTicket {
+  id           String   @id @default(uuid())
+  customerName String?
+  phone        String
+  latitude     Float    // พิกัด GPS Latitude
+  longitude    Float    // พิกัด GPS Longitude
+  addressNote  String?  // รายละเอียดสถานที่
+  issueType    String   // BATTERY_DEPLETED, SYSTEM_FAULT, FLAT_TIRE
+  status       String   @default("PENDING") // PENDING, DISPATCHED, COMPLETED
+  assignedVan  String?  // รหัสรถช่างที่รับงาน
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 4. จองคิวทดลองขับ
+model TestDriveBooking {
+  id            String   @id @default(uuid())
+  carId         String
+  car           Car      @relation(fields: [carId], references: [id])
+  customerName  String
+  phone         String
+  preferredDate String
+  status        String   @default("CONFIRMED")
+  createdAt     DateTime @default(now())
+}
